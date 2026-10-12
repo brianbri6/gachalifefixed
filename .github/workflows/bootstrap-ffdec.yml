@@ -1,0 +1,33 @@
+name: Bootstrap FFDec
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/bootstrap-ffdec.yml'
+
+jobs:
+  package-ffdec:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Download pinned FFDec release
+        shell: bash
+        run: |
+          set -euxo pipefail
+          curl -L --fail --retry 3 \
+            -o ffdec.zip \
+            https://github.com/jindrapetrik/jpexs-decompiler/releases/download/version26.3.0/ffdec_26.3.0.zip
+          echo '35f4930eb7c380afe66f2117f90b006deac0631473ad7500bb39c78f68645ecd  ffdec.zip' | sha256sum -c -
+          mkdir ffdec
+          unzip -q ffdec.zip -d ffdec
+          find ffdec -maxdepth 2 -type f | head
+
+      - name: Upload FFDec
+        uses: actions/upload-artifact@v4
+        with:
+          name: ffdec-26.3.0
+          path: ffdec
+          compression-level: 0
+          retention-days: 1
+          if-no-files-found: error
