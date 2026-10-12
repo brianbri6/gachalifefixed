@@ -1,6 +1,6 @@
 # Codex Progress
 
-_Last updated: 2026-10-12. Posted from the active reconstruction workspace._
+_Last updated: 2026-10-12. Posted from the active reconstruction workspace and updated during GitHub publication._
 
 ## Current project goal
 Recover Gacha Life into a working, maintainable ActionScript/AIR source project from the incomplete decompiled source pack plus the compiled `GachaLifePC.swf`, while preserving the original SWF timeline/library assets losslessly and keeping every milestone recoverable in Git.
@@ -45,12 +45,30 @@ Recent milestones:
 - `4ad1acd` — verified AVM2 patch pipeline
 - `2526b23` — preserve lossless SWF timeline/asset shell
 
+## GitHub publication state
+Repository: `brianbri6/gachalifefixed`
+
+Recovery branch: `codex/reconstruction-progress-2026-10-12`
+
+PR: `#1` — Gacha Life reconstruction workspace and recovery progress.
+
+Published milestone commits before this ledger update:
+- `0d2fa723` — replace branch with reconstruction workspace scaffold
+- `7fcb974a` — add AVM2 parsing, overlay, and recovery validation tools
+- `06474aee` — index reconstructed source and recovered methods
+- `b8ce14d1` — add manual overrides and verified source patches
+- `54bc532f` — add source generator, validator, and AVM2 emitter
+
+GitHub currently contains the progress/status/test docs, recovery manifest, AIR build scaffold, SWF/ABC tools, four-fix patch/validator, AVM2 parser/disassembler, guarded recovery overlay, source generator/static validator, manual semantic overrides, source patches, and nine source-index manifests.
+
+The nine `manifests/source-index-*.txt` files account for all 478 locally generated/recovered source files by exact SHA-256, byte size, and path. Large multi-megabyte generated ActionScript bodies are not copied verbatim through the connector because its per-write text transfer ceiling is much smaller than those files; the checked-in tools regenerate them deterministically from the authoritative SWF. Do not repeat attempts to push those huge files one-by-one through the same connector path unless the transfer mechanism changes.
+
 ## Main files/directories changed
-- `binary_reconstructed_source/` — generated AS3 tree covering all 462 ABC classes.
+- `binary_reconstructed_source/` — generated AS3 tree covering all 462 ABC classes locally; exact GitHub hashes/sizes are in `manifests/source-index-*.txt`.
 - `recovery_manifest.json` — mapping for all known failed decompilations.
-- `recovered_methods/` — deterministic recovered method bodies.
+- `recovered_methods/` — deterministic recovered method bodies locally; hashes/sizes are indexed on GitHub.
 - `manual_overrides/` — high-level semantic overrides where intact source is preferable to low-level emission.
-- `swf_shell/` — lossless pre/post-DoABC shell preserving timeline/library assets.
+- `swf_shell/` — lossless pre/post-DoABC shell preserving timeline/library assets locally.
 - `air_project/` — AIR descriptor/build scaffold and reconstructed-SWF build script.
 - `tools/` — SWF parser, ABC indexer/disassembler, AVM2-to-AS3 emitter, validators, overlay tool, SWF rebuild tool, and direct safe-fix ABC patcher.
 - `AUDIT_FINDINGS.md`, `HARDWARE_TESTS.md`, `NEXT_TASK.md`, `RECONSTRUCTION_STATUS.md` — live project state and handoff documentation.
@@ -80,6 +98,7 @@ Current static/structural results:
 - External FFDec acquisition was therefore not repeatedly retried; local dependency-free AVM2 tooling was written instead.
 - Apache Flex 4.16.1 was located publicly, but the container could not resolve the download host, so a real `mxmlc` run is still pending.
 - Earlier inspection of `GachaLife2.zip` was correctly rejected because it is Gacha Life 2 and not authoritative for the Gacha Life 1 source pack.
+- A first PR metadata refresh incorrectly tried `maintainer_can_modify` on a same-repository PR and GitHub rejected that field; it was immediately retried without repeating or altering branch content.
 
 ## Exact validation commands
 Run from the reconstruction workspace root:
