@@ -1,0 +1,125 @@
+#!/usr/bin/env python3
+"""Recover compilable low-level AS3 from a constrained AVM2 method body.
+
+This is intentionally a control-flow-preserving state-machine emitter, not a pretty decompiler.
+It resolves constant-pool names/literals and symbolically folds stack operations inside basic blocks.
+"""
+from __future__ import annotations
+import argparse, json, math, re
+from dataclasses import dataclass
+from pathlib import Path
+from abc_index import ABC, swf_abc
+from avm2_disasm import decode
+
+IDENT=re.compile(r'^[A-Za-z_$][A-Za-z0-9_$]*$')
+RESERVED={'as','break','case','catch','class','const','continue','default','delete','do','else','extends','false','finally','for','function','if','implements','import','in','instanceof','interface','internal','is','native','new','null','package','private','protected','public','return','super','switch','this','throw','true','try','typeof','use','var','void','while','with'}
+
+@dataclass
+class Expr:
+    code:str
+    side:bool=False
+    kind:str='value'
+    name:str|None=None
+
+def qstr(s): return json.dumps(s,ensure_ascii=False)
+def safe_ident(s,fallback):
+    return s if s and IDENT.match(s) and s not in RESERVED else fallback
+
+def const_value(abc,idx,kind):
+    if kind==0x03: return str(abc.ints[idx])
+    if kind==0x04: return str(abc.uints[idx])
+    if kind==0x06:
+        z=abc.doubles[idx]; return 'NaN' if math.isnan(z) else repr(z)
+    if kind==0x01: return qstr(abc.s(idx))
+    if kind==0x0B: return 'true'
+    if kind==0x0A: return 'false'
+    if kind==0x0C: return 'null'
+    if kind==0x00: return 'undefined'
+    if kind in (0x08,0x16,0x17,0x18,0x19,0x1A,0x05): return qstr(abc.ns(idx))
+    return 'undefined'
+
+def param_names(abc,mid):
+    m=abc.methods[mid]; out=[]; used=set(); raw=m.get('param_names') or []
+    for idx in range(1,len(m['param_types'])+1):
+        candidate=abc.s(raw[idx-1]) if idx-1 < len(raw) else ''; candidate=safe_ident(candidate,f'arg{idx}')
+        if candidate in used:
+            candidate=f'arg{idx}'
+            while candidate in used: candidate += '_'
+        used.add(candidate); out.append(candidate)
+    return out
+
+def param_name(abc,mid,idx): return param_names(abc,mid)[idx-1]
+
+def static_trait_owner(abc,idx,current_owner=None):
+    """Return the declaring class QName when a multiname resolves to a static class trait."""
+    cache=getattr(abc,'_static_trait_owner_cache',None)
+    if cache is None:
+        exact={}; by_name={}
+        for ci,cl in enumerate(abc.classes):
+            owner=abc.mn(abc.instances[ci]['name'])
+            for t in cl['traits']:
+                exact.setdefault(t['name'],owner); d=abc.multinames[t['name']]
+                tname=abc.s(d.get('name',0)) if d and d['kind'] in (0x07,0x0d,0x09,0x0e,0x0f,0x10) else abc.mn(t['name']).split('.')[-1]
+                by_name.setdefault(tname,set()).add(owner)
+        cache=(exact,by_name); abc._static_trait_owner_cache=cache
+    exact,by_name=cache
+    if idx in exact: return exact[idx]
+    name=prop_name(abc,idx) or abc.mn(idx).split('.')[-1]; owners=by_name.get(name,set())
+    if current_owner and current_owner in owners: return current_owner
+    if len(owners)==1: return next(iter(owners))
+    return None
+
+def class_qname(abc,idx):
+    """Resolve a multiname to a unique ABC class QName when possible."""
+    cache=getattr(abc,'_class_qname_cache',None)
+    if cache is None:
+        exact={}; by_name={}
+        for inst in abc.instances:
+            qname=abc.mn(inst['name']); exact.setdefault(inst['name'],qname); simple=qname.split('.')[-1]; by_name.setdefault(simple,set()).add(qname)
+        cache=(exact,by_name); abc._class_qname_cache=cache
+    exact,by_name=cache
+    if idx in exact: return exact[idx]
+    name=prop_name(abc,idx) or abc.mn(idx).split('.')[-1]; owners=by_name.get(name,set())
+    return next(iter(owners)) if len(owners)==1 else None
+
+def source_ctor(expr):
+    if re.match(r'^[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*(?:\.<.+>)?$',expr): return expr
+    return f'({expr})'
+
+def prop_name(abc,idx):
+    d=abc.multinames[idx]
+    if d and d['kind'] in (0x07,0x0d,0x09,0x0e,0x0f,0x10): return abc.s(d.get('name',0))
+    return None
+
+def runtime_name(abc,idx):
+    d=abc.multinames[idx]; return bool(d and d['kind'] in (0x11,0x12,0x1b,0x1c))
+
+def global_ref(abc,idx):
+    name=abc.mn(idx)
+    if name=='*': return '*'
+    return name
+
+def access(obj,key): return f'({obj})[{qstr(key)}]'
+def static_access(owner,key):
+    if key and IDENT.match(key) and key not in RESERVED: return f'{owner}.{key}'
+    return access(owner,key)
+def dynaccess(obj,keyexpr): return f'({obj})[{keyexpr}]'
+def call_access(obj,key,args): return f'{access(obj,key)}({", ".join(args)})'
+def dyn_call_access(obj,key,args): return f'{dynaccess(obj,key)}({", ".join(args)})'
+def binary(stack,op):
+    b=stack.pop();a=stack.pop();stack.append(Expr(f'(({a.code}) {op} ({b.code}))'))
+
+def stack_effect(abc,x):
+    n=x['name']; vals=x['vals']
+    if n in ('pushscope','pushwith'): return -1
+    if n.startswith('debug') or n in ('nop','label','popscope','bkpt','bkptline','timestamp'): return 0
+    if n in ('getlocal0','getlocal1','getlocal2','getlocal3','getlocal','pushnull','pushundefined','pushbyte','pushshort','pushtrue','pushfalse','pushnan','pushstring','pushint','pushuint','pushdouble','getlex','findpropstrict','findproperty','finddef','getglobalscope','getscopeobject'): return 1
+    if n in ('setlocal0','setlocal1','setlocal2','setlocal3','setlocal','pop','throw','returnvalue'): return -1
+    if n=='dup': return 1
+    if n=='swap': return 0
+    if n=='getproperty': return -1 if runtime_name(abc,vals[0]) else 0
+    if n in ('setproperty','initproperty'): return -3 if runtime_name(abc,vals[0]) else -2
+    if n=='deleteproperty': return -1 if runtime_name(abc,vals[0]) else 0
+    if n=='getslot': return 0
+    if n=='setslot': return -2
+    if n in ('add','subtract','multiply','divide','modulo','lshift','rshift','urshift','bitand','bitor','bitxor','equals','strictequals','lessthan','lessequals','greaterthan','greaterequals','instanceof','in','add_i','subtract_i','multiply_i'): return -1

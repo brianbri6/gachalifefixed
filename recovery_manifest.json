@@ -1,0 +1,182 @@
+{
+  "binary": {
+    "archive": "/mnt/data/GachaLife.zip",
+    "swf_member": "GachaLifePC.app/GachaLifePC.swf",
+    "sha256": "d9d5c98f1f30b0fd872cd5ad0f2ca115673e4ff1ee31ee0ab92c58de45192863",
+    "air_version_label": "1.1.3"
+  },
+  "source": {
+    "repository": "expl0itcha1nz/gachalife-sourcecodepack-1.1.4",
+    "pinned_tree": "c3de7425b05307677ade1398908103be10dd9d40"
+  },
+  "recoveries": [
+    {
+      "source_file": "GachaLife_fla/MainTimeline.as",
+      "source_class": "GachaLife_fla.MainTimeline",
+      "binary_class": "GachaLifePC_fla.MainTimeline",
+      "method": "updatechar",
+      "source_signature": "public function updatechar() : void",
+      "binary_method_id": 335,
+      "binary_aliases": ["GachaLifePC_fla.MainTimeline::updatechar"],
+      "bytecode_length": 36659,
+      "instruction_count": 14548,
+      "generated_body": "recovered_methods/335_updatechar.as"
+    },
+    {
+      "source_file": "GachaLife_fla/MainTimeline.as",
+      "source_class": "GachaLife_fla.MainTimeline",
+      "binary_class": "GachaLifePC_fla.MainTimeline",
+      "method": "presetgo",
+      "source_signature": "public function presetgo() : void",
+      "binary_method_id": 340,
+      "binary_aliases": ["GachaLifePC_fla.MainTimeline::presetgo"],
+      "bytecode_length": 788280,
+      "instruction_count": 313100,
+      "generated_body": "recovered_methods/340_presetgo.as"
+    },
+    {
+      "source_file": "GachaLife_fla/MainTimeline.as",
+      "source_class": "GachaLife_fla.MainTimeline",
+      "binary_class": "GachaLifePC_fla.MainTimeline",
+      "method": "colorloop",
+      "source_signature": "public function colorloop() : void",
+      "binary_method_id": 355,
+      "binary_aliases": ["GachaLifePC_fla.MainTimeline::colorloop"],
+      "bytecode_length": 253805,
+      "instruction_count": 88166,
+      "generated_body": "recovered_methods/355_colorloop.as"
+    },
+    {
+      "source_file": "GachaLife_fla/MainTimeline.as",
+      "source_class": "GachaLife_fla.MainTimeline",
+      "binary_class": "GachaLifePC_fla.MainTimeline",
+      "method": "updatescenechars",
+      "source_signature": "public function updatescenechars() : void",
+      "binary_method_id": 435,
+      "binary_aliases": ["GachaLifePC_fla.MainTimeline::updatescenechars"],
+      "bytecode_length": 42506,
+      "instruction_count": 18256,
+      "generated_body": "recovered_methods/435_updatescenechars.as"
+    },
+    {
+      "source_file": "GachaLife_fla/MainTimeline.as",
+      "source_class": "GachaLife_fla.MainTimeline",
+      "binary_class": "GachaLifePC_fla.MainTimeline",
+      "method": "updatemakerchars",
+      "source_signature": "public function updatemakerchars() : void",
+      "binary_method_id": 467,
+      "binary_aliases": ["GachaLifePC_fla.MainTimeline::updatemakerchars"],
+      "bytecode_length": 56466,
+      "instruction_count": 24115,
+      "generated_body": "recovered_methods/467_updatemakerchars.as"
+    },
+    {
+      "source_file": "GachaLife_fla/MainTimeline.as",
+      "source_class": "GachaLife_fla.MainTimeline",
+      "binary_class": "GachaLifePC_fla.MainTimeline",
+      "method": "updatenpcs",
+      "source_signature": "public function updatenpcs() : void",
+      "binary_method_id": 526,
+      "binary_aliases": ["GachaLifePC_fla.MainTimeline::updatenpcs"],
+      "bytecode_length": 33605,
+      "instruction_count": 13500,
+      "generated_body": "recovered_methods/526_updatenpcs.as"
+    },
+    {
+      "source_file": "GachaLife_fla/MainTimeline.as",
+      "source_class": "GachaLife_fla.MainTimeline",
+      "binary_class": "GachaLifePC_fla.MainTimeline",
+      "method": "updatequestions",
+      "source_signature": "public function updatequestions() : void",
+      "binary_method_id": 527,
+      "binary_aliases": ["GachaLifePC_fla.MainTimeline::updatequestions"],
+      "bytecode_length": 107758,
+      "instruction_count": 36246,
+      "generated_body": "recovered_methods/527_updatequestions.as"
+    },
+    {
+      "source_file": "GachaLife_fla/MainTimeline.as",
+      "source_class": "GachaLife_fla.MainTimeline",
+      "binary_class": "GachaLifePC_fla.MainTimeline",
+      "method": "frame1",
+      "source_signature": "function frame1() : *",
+      "binary_method_id": 528,
+      "binary_aliases": ["GachaLifePC_fla.MainTimeline::GachaLifePC_fla.frame1"],
+      "bytecode_length": 36324,
+      "instruction_count": 12958,
+      "generated_body": "recovered_methods/528_frame1.as"
+    },
+    {
+      "source_file": "GachaLife_fla/MainTimeline.as",
+      "source_class": "GachaLife_fla.MainTimeline",
+      "binary_class": "GachaLifePC_fla.MainTimeline",
+      "method": "frame5",
+      "source_signature": "function frame5() : *",
+      "binary_method_id": 529,
+      "binary_aliases": ["GachaLifePC_fla.MainTimeline::GachaLifePC_fla.frame5"],
+      "bytecode_length": 110550,
+      "instruction_count": 45928,
+      "generated_body": "recovered_methods/529_frame5.as"
+    },
+    {
+      "source_file": "GachaLife_fla/numbersonopen_4970.as",
+      "source_class": "GachaLife_fla.numbersonopen_4970",
+      "binary_class": "GachaLifePC_fla.numbersonopen_4956",
+      "method": "frame2",
+      "source_signature": "function frame2() : *",
+      "binary_method_id": 2570,
+      "binary_aliases": ["GachaLifePC_fla.numbersonopen_4956::GachaLifePC_fla.frame2"],
+      "bytecode_length": 214737,
+      "instruction_count": 68263,
+      "generated_body": "recovered_methods/2570_frame2.as"
+    },
+    {
+      "source_file": "GachaLife_fla/seetocoolor_4915.as",
+      "source_class": "GachaLife_fla.seetocoolor_4915",
+      "binary_class": "GachaLifePC_fla.seetocoolor_4905",
+      "method": "updatecolor",
+      "source_signature": "public function updatecolor() : void",
+      "binary_method_id": 2993,
+      "binary_aliases": ["GachaLifePC_fla.seetocoolor_4905::updatecolor"],
+      "bytecode_length": 88852,
+      "instruction_count": 32035,
+      "generated_body": "recovered_methods/2993_updatecolor.as"
+    },
+    {
+      "source_file": "GachaLife_fla/chatnpc_5373.as",
+      "source_class": "GachaLife_fla.chatnpc_5373",
+      "binary_class": "GachaLifePC_fla.chatnpc_5326",
+      "method": "updatenpcs",
+      "source_signature": "public function updatenpcs() : void",
+      "binary_method_id": 1329,
+      "binary_aliases": ["GachaLifePC_fla.chatnpc_5326::updatenpcs"],
+      "bytecode_length": 45308,
+      "instruction_count": 12936,
+      "generated_body": "recovered_methods/1329_updatenpcs.as"
+    },
+    {
+      "source_file": "GachaLife_fla/chatnpc_5373.as",
+      "source_class": "GachaLife_fla.chatnpc_5373",
+      "binary_class": "GachaLifePC_fla.chatnpc_5326",
+      "method": "updatechar",
+      "source_signature": "public function updatechar() : void",
+      "binary_method_id": 1330,
+      "binary_aliases": ["GachaLifePC_fla.chatnpc_5326::updatechar"],
+      "bytecode_length": 44473,
+      "instruction_count": 12925,
+      "generated_body": "recovered_methods/1330_updatechar.as"
+    },
+    {
+      "source_file": "GachaLife_fla/customizations_4874.as",
+      "source_class": "GachaLife_fla.customizations_4874",
+      "binary_class": "GachaLifePC_fla.customizations_4864",
+      "method": "randomnamebtx",
+      "source_signature": "public function randomnamebtx(evt:MouseEvent) : void",
+      "binary_method_id": 1807,
+      "binary_aliases": ["GachaLifePC_fla.customizations_4864::randomnamebtx"],
+      "bytecode_length": 42947,
+      "instruction_count": 13093,
+      "generated_body": "recovered_methods/1807_randomnamebtx.as"
+    }
+  ]
+}

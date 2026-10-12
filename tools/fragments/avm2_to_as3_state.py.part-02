@@ -1,0 +1,84 @@
+            if n=='pushnull': stack.append(Expr('null')); continue
+            if n=='pushundefined': stack.append(Expr('undefined')); continue
+            if n=='pushtrue': stack.append(Expr('true')); continue
+            if n=='pushfalse': stack.append(Expr('false')); continue
+            if n=='pushnan': stack.append(Expr('NaN')); continue
+            if n=='pushbyte' or n=='pushshort': stack.append(Expr(str(v[0]))); continue
+            if n=='pushstring': stack.append(Expr(qstr(abc.s(v[0])))); continue
+            if n=='pushint': stack.append(Expr(str(abc.ints[v[0]]))); continue
+            if n=='pushuint': stack.append(Expr(str(abc.uints[v[0]])+'u')); continue
+            if n=='pushdouble':
+                z=abc.doubles[v[0]]; stack.append(Expr('NaN' if math.isnan(z) else repr(z))); continue
+            if n=='dup': stack.append(stack[-1]); continue
+            if n=='swap': stack[-1],stack[-2]=stack[-2],stack[-1]; continue
+            if n=='pop':
+                e=stack.pop();
+                if e.side: lines.append(e.code+';')
+                continue
+            if n in ('findpropstrict','findproperty','finddef'):
+                name=prop_name(abc,v[0]) or abc.mn(v[0]); owner=static_trait_owner(abc,v[0],current_owner)
+                if owner: stack.append(Expr(owner,kind='classscope',name=name))
+                else: stack.append(Expr(name,kind='scope',name=name))
+                continue
+            if n=='getlex':
+                name=prop_name(abc,v[0]) or abc.mn(v[0]); owner=static_trait_owner(abc,v[0],current_owner)
+                if owner: stack.append(Expr(static_access(owner,name),kind='static',name=name))
+                else:
+                    cls=class_qname(abc,v[0]); stack.append(Expr(cls or global_ref(abc,v[0]),kind='class' if cls else 'global',name=name))
+                continue
+            if n=='getglobalscope': stack.append(Expr('this',kind='scope')); continue
+            if n=='getscopeobject':
+                stack.append(Expr('__activation' if has_activation and v[0] == 1 else 'this',kind='activation' if has_activation and v[0] == 1 else 'scope')); continue
+            if n=='getproperty':
+                mi=v[0]
+                if runtime_name(abc,mi): key=stack.pop();obj=stack.pop(); stack.append(Expr(dynaccess(obj.code,key.code)))
+                else:
+                    obj=stack.pop();key=prop_name(abc,mi) or abc.mn(mi); cls=class_qname(abc,mi)
+                    if cls and obj.kind=='scope': stack.append(Expr(cls,kind='class',name=key))
+                    elif obj.kind=='scope': stack.append(Expr(key,kind='global',name=key))
+                    elif obj.kind=='classscope': stack.append(Expr(static_access(obj.code,key),kind='static',name=key))
+                    else: stack.append(Expr(access(obj.code,key)))
+                continue
+            if n in ('setproperty','initproperty'):
+                mi=v[0]; val=stack.pop()
+                if runtime_name(abc,mi): key=stack.pop();obj=stack.pop(); lhs=dynaccess(obj.code,key.code)
+                else:
+                    obj=stack.pop();key=prop_name(abc,mi) or abc.mn(mi); lhs=key if obj.kind=='scope' else (static_access(obj.code,key) if obj.kind=='classscope' else access(obj.code,key))
+                lines.append(f'{lhs} = {val.code};'); continue
+            if n=='getslot':
+                obj=stack.pop(); slot=v[0]; trait=next((t for t in body['traits'] if t.get('slot_id')==slot),None); key=(prop_name(abc,trait['name']) or abc.mn(trait['name']).split('.')[-1]) if trait else f'__slot{slot}'; stack.append(Expr(access(obj.code,key))); continue
+            if n=='setslot':
+                val=stack.pop(); obj=stack.pop(); slot=v[0]; trait=next((t for t in body['traits'] if t.get('slot_id')==slot),None); key=(prop_name(abc,trait['name']) or abc.mn(trait['name']).split('.')[-1]) if trait else f'__slot{slot}'; lines.append(f'{access(obj.code,key)} = {val.code};'); continue
+            if n in ('callproperty','callproplex','callpropvoid'):
+                mi,argc=v[0],v[1];args=popargs(argc)
+                if runtime_name(abc,mi): key=stack.pop();obj=stack.pop(); code=dyn_call_access(obj.code,key.code,[a.code for a in args])
+                else:
+                    obj=stack.pop();key=prop_name(abc,mi) or abc.mn(mi)
+                    if obj.kind=='scope': code=f'{key}({", ".join(a.code for a in args)})'
+                    elif obj.kind=='classscope': code=f'{static_access(obj.code,key)}({", ".join(a.code for a in args)})'
+                    else: code=call_access(obj.code,key,[a.code for a in args])
+                if n=='callpropvoid': lines.append(code+';')
+                else: stack.append(Expr(code,side=True))
+                continue
+            if n=='constructprop':
+                mi,argc=v[0],v[1];args=popargs(argc)
+                if runtime_name(abc,mi): key=stack.pop();obj=stack.pop(); code=f'new ({dynaccess(obj.code,key.code)})({", ".join(a.code for a in args)})'
+                else:
+                    obj=stack.pop();key=prop_name(abc,mi) or abc.mn(mi);cls=class_qname(abc,mi)
+                    if cls and obj.kind=='scope': code=f'new {cls}({", ".join(a.code for a in args)})'
+                    elif obj.kind=='scope': code=f'new {key}({", ".join(a.code for a in args)})'
+                    elif obj.kind=='classscope': code=f'new {static_access(obj.code,key)}({", ".join(a.code for a in args)})'
+                    else: code=f'new ({access(obj.code,key)})({", ".join(a.code for a in args)})'
+                stack.append(Expr(code,side=True)); continue
+            if n=='construct':
+                argc=v[0]; args=popargs(argc); ctor=stack.pop(); code=f'new {source_ctor(ctor.code)}({", ".join(a.code for a in args)})'; stack.append(Expr(code,side=True)); continue
+            if n=='constructsuper':
+                argc=v[0]; args=popargs(argc); receiver=stack.pop(); lines.append(f'super({", ".join(a.code for a in args)});'); continue
+            if n=='newarray':
+                args=popargs(v[0]); stack.append(Expr('['+', '.join(a.code for a in args)+']')); continue
+            if n=='newobject':
+                vals=[]
+                for _ in range(v[0]):
+                    value=stack.pop(); key=stack.pop(); vals.append((key,value))
+                vals.reverse(); stack.append(Expr('{'+', '.join(f'[{k.code}]: {val.code}' for k,val in vals)+'}')); continue
+            if n=='newactivation':

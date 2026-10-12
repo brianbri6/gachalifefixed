@@ -1,0 +1,92 @@
+                stack.append(Expr('__activation',kind='activation')); continue
+            if n=='newfunction':
+                nested=emit_method(abc,v[0],method_name=f'__closure_{v[0]}',visibility='')
+                nested=re.sub(r'^function\s+__closure_\d+\s*', 'function', nested, count=1)
+                stack.append(Expr(nested.strip(),side=True)); continue
+            if n=='applytype':
+                types=popargs(v[0]); base=stack.pop()
+                stack.append(Expr(f'{base.code}.<{", ".join(t.code for t in types)}>')); continue
+            if n=='call':
+                argc=v[0]; args=popargs(argc); receiver=stack.pop(); fn=stack.pop()
+                stack.append(Expr(f'({fn.code}).call({receiver.code}{", " if args else ""}{", ".join(a.code for a in args)})',side=True)); continue
+            if n in ('coerce_a','checkfilter'): continue
+            if n=='coerce':
+                e=stack.pop(); typ=abc.mn(v[0]); stack.append(e if typ=='*' else Expr(f'{typ}({e.code})')); continue
+            if n in ('coerce_s','convert_s'): e=stack.pop();stack.append(Expr(f'String({e.code})'));continue
+            if n in ('convert_i','coerce_i'): e=stack.pop();stack.append(Expr(f'int({e.code})'));continue
+            if n in ('convert_u','coerce_u'): e=stack.pop();stack.append(Expr(f'uint({e.code})'));continue
+            if n in ('convert_d','coerce_d'): e=stack.pop();stack.append(Expr(f'Number({e.code})'));continue
+            if n in ('convert_b','coerce_b'): e=stack.pop();stack.append(Expr(f'Boolean({e.code})'));continue
+            if n in ('coerce_o',): continue
+            if n=='astype':
+                e=stack.pop(); stack.append(Expr(f'(({e.code}) as {abc.mn(v[0])})')); continue
+            if n=='astypelate':
+                typ=stack.pop(); e=stack.pop(); stack.append(Expr(f'({typ.code})({e.code})')); continue
+            if n in ('add','add_i'): binary(stack,'+');continue
+            if n in ('subtract','subtract_i'): binary(stack,'-');continue
+            if n in ('multiply','multiply_i'): binary(stack,'*');continue
+            if n=='divide': binary(stack,'/');continue
+            if n=='modulo': binary(stack,'%');continue
+            if n=='lshift': binary(stack,'<<');continue
+            if n=='rshift': binary(stack,'>>');continue
+            if n=='urshift': binary(stack,'>>>');continue
+            if n=='bitand': binary(stack,'&');continue
+            if n=='bitor': binary(stack,'|');continue
+            if n=='bitxor': binary(stack,'^');continue
+            if n=='equals': binary(stack,'==');continue
+            if n=='strictequals': binary(stack,'===');continue
+            if n=='lessthan': binary(stack,'<');continue
+            if n=='lessequals': binary(stack,'<=');continue
+            if n=='greaterthan': binary(stack,'>');continue
+            if n=='greaterequals': binary(stack,'>=');continue
+            if n=='negate': e=stack.pop();stack.append(Expr(f'-({e.code})'));continue
+            if n=='negate_i': e=stack.pop();stack.append(Expr(f'int(-({e.code}))'));continue
+            if n=='not': e=stack.pop();stack.append(Expr(f'!Boolean({e.code})'));continue
+            if n=='bitnot': e=stack.pop();stack.append(Expr(f'~int({e.code})'));continue
+            if n=='typeof': e=stack.pop();stack.append(Expr(f'typeof({e.code})'));continue
+            if n=='increment': e=stack.pop();stack.append(Expr(f'(({e.code}) + 1)'));continue
+            if n=='decrement': e=stack.pop();stack.append(Expr(f'(({e.code}) - 1)'));continue
+            if n=='increment_i': e=stack.pop();stack.append(Expr(f'int(({e.code}) + 1)'));continue
+            if n=='decrement_i': e=stack.pop();stack.append(Expr(f'int(({e.code}) - 1)'));continue
+            if n in ('inclocal','inclocal_i'):
+                idx=v[0]; ln=local_name(mid,abc,idx,local0_expr); lines.append(f'{ln} = {"int(" if n.endswith("_i") else ""}{ln} + 1{ ")" if n.endswith("_i") else ""};'); continue
+            if n in ('declocal','declocal_i'):
+                idx=v[0]; ln=local_name(mid,abc,idx,local0_expr); lines.append(f'{ln} = {"int(" if n.endswith("_i") else ""}{ln} - 1{ ")" if n.endswith("_i") else ""};'); continue
+            if n=='instanceof': binary(stack,'is'); continue
+            if n=='in': binary(stack,'in'); continue
+            if n in ('jump','returnvoid','returnvalue','throw') or n.startswith('if'):
+                if not last: raise ValueError(f'terminator {n} not last in block')
+                if n=='jump': pass
+                elif n=='returnvoid': lines.append('return;');terminal=True
+                elif n=='returnvalue': lines.append('return '+stack.pop().code+';');terminal=True
+                elif n=='throw': lines.append('throw '+stack.pop().code+';');terminal=True
+                elif n in ('iftrue','iffalse'):
+                    e=stack.pop(); cond=condops[n](e); x['_cond']=cond
+                elif n in bincond:
+                    bb=stack.pop();aa=stack.pop(); x['_cond']=f'(({aa.code}) {bincond[n]} ({bb.code}))'
+                continue
+            raise ValueError(f'unhandled opcode {n} in method {mid} at {x["offset"]:#x}')
+        out.append(f'         case {start}:')
+        for ln in lines: out.append('            '+ln)
+        if terminal:
+            out.append('            break;')
+            continue
+        x=b[-1]; n=x['name']
+        for i,e in enumerate(stack): out.append(f'            __stk{i} = {e.code};')
+        if n=='jump': out.append(f'            __pc = {x["targets"][0]};');out.append('            continue;')
+        elif n.startswith('if'):
+            taken=x['targets'][0]; fall=nxt[start]
+            out.append(f'            __pc = ({x["_cond"]}) ? {taken} : {fall};');out.append('            continue;')
+        else:
+            fall=nxt[start]
+            if fall is None: out.append('            return;')
+            else: out.append(f'            __pc = {fall};');out.append('            continue;')
+    out += ['         default:','            throw new Error("Recovered AVM2 state machine reached invalid pc: " + __pc);','      }','   }','}']
+    return repair_scope_spills('\n'.join(out)+'\n')
+
+def main():
+    ap=argparse.ArgumentParser();ap.add_argument('swf',type=Path);ap.add_argument('method',type=int);ap.add_argument('--name');ap.add_argument('--visibility',default='public');ap.add_argument('-o','--output',type=Path);args=ap.parse_args()
+    abc=ABC(swf_abc(args.swf)); text=emit_method(abc,args.method,args.name,args.visibility)
+    if args.output: args.output.write_text(text,encoding='utf-8')
+    else: print(text,end='')
+if __name__=='__main__': main()

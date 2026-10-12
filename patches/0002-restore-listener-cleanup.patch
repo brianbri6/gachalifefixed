@@ -1,0 +1,23 @@
+diff --git a/GachaLife_fla/restore_4819.as b/GachaLife_fla/restore_4819.as
+--- a/GachaLife_fla/restore_4819.as
++++ b/GachaLife_fla/restore_4819.as
+@@
+       public function closebts(evt:MouseEvent) : void
+       {
+          if(MovieClip(root).mutesfx == 1)
+          {
+             MovieClip(root).myChannel2 = MovieClip(root).clicksfx3.play(0,1);
+          }
++         stage.removeEventListener(Event.ENTER_FRAME,this.loopfd);
+          gotoAndStop(1);
+       }
+@@
+             if(MovieClip(root).datatext == 2)
+             {
+                this.resultx.gotoAndStop(1);
++               stage.removeEventListener(Event.ENTER_FRAME,this.loopfd);
+                gotoAndStop(1);
+                parent.exitmap = 2;
+             }
+          }
+       }

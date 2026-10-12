@@ -1,0 +1,46 @@
+diff --git a/GachaLife_fla/MainTimeline.as b/GachaLife_fla/MainTimeline.as
+--- a/GachaLife_fla/MainTimeline.as
++++ b/GachaLife_fla/MainTimeline.as
+@@ -17355,11 +17355,11 @@
+       public function generateRandomString(strlen:Number) : String
+       {
+          var chars:String = "ABCDEFGHJKLMNPQRSTUVWXYZ123456789";
+-         var num_chars:Number = chars.length - 1;
++         var num_chars:Number = chars.length;
+          var randomChar:String = "";
+          for(var i:Number = 0; i < strlen; i++)
+          {
+             randomChar = randomChar + chars.charAt(Math.floor(Math.random() * num_chars));
+          }
+          return randomChar;
+       }
+@@ -17692,6 +17692,10 @@
+       public function addComma(num:uint) : String
+       {
+          var tmp:uint = 0;
+          var str:String = "";
++         if(num == 0)
++         {
++            return "0";
++         }
+          while(num > 0)
+          {
+             tmp = num % 1000;
+@@ -28669,7 +28673,7 @@
+                this.minigameover.gotoAndPlay(2);
+                this.bex.bex.head.gotoAndStop(2);
+                stage.removeEventListener(Event.ENTER_FRAME,this.minigameloop2);
+-               stage.removeEventListener(Event.ENTER_FRAME,this.onEnterFramex);
++               removeEventListener(Event.ENTER_FRAME,this.onEnterFramex);
+             }
+          }
+       }
+@@ -29662,6 +29666,7 @@
+             {
+                this.startgame = 1;
+                this.minigameover.gotoAndPlay(2);
+                stage.removeEventListener(Event.ENTER_FRAME,this.minigameloop6);
++               removeEventListener(Event.ENTER_FRAME,this.onEnterFramexf);
+             }
+          }
+       }

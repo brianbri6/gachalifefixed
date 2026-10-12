@@ -1,0 +1,96 @@
+    if n in ('negate','increment','decrement','typeof','not','bitnot','convert_s','convert_i','convert_u','convert_d','convert_b','convert_o','coerce','coerce_a','coerce_s','coerce_b','coerce_i','coerce_d','coerce_u','coerce_o','astype','negate_i','increment_i','decrement_i','checkfilter'): return 0
+    if n=='astypelate': return -1
+    if n in ('iftrue','iffalse'): return -1
+    if n in ('ifeq','ifne','iflt','ifle','ifgt','ifge','ifnlt','ifnle','ifngt','ifnge','ifstricteq','ifstrictne'): return -2
+    if n in ('jump','returnvoid'): return 0
+    if n in ('callproperty','callproplex','callsuper'):
+        argc=vals[1]; extra=1 if runtime_name(abc,vals[0]) else 0
+        return -(argc+extra)
+    if n in ('callpropvoid','callsupervoid'):
+        argc=vals[1]; extra=1 if runtime_name(abc,vals[0]) else 0
+        return -(argc+1+extra)
+    if n=='constructprop':
+        argc=vals[1]; extra=1 if runtime_name(abc,vals[0]) else 0
+        return -(argc+extra)
+    if n=='construct': return -vals[0]
+    if n=='call': return -(vals[0]+1)
+    if n=='newarray': return 1-vals[0]
+    if n=='newobject': return 1-2*vals[0]
+    if n=='applytype': return -vals[0]
+    if n in ('newfunction','newclass','newactivation','newcatch'): return 1
+    if n=='constructsuper': return -(vals[0]+1)
+    if n in ('inclocal','declocal','inclocal_i','declocal_i','kill'): return 0
+    if n=='hasnext2': return 1
+    if n in ('nextname','nextvalue'): return -1
+    raise ValueError(f'no stack effect for {n}')
+
+def cfg(abc,ins):
+    byoff={x['offset']:i for i,x in enumerate(ins)}; leaders={0}; terminators={'jump','iftrue','iffalse','ifeq','ifne','iflt','ifle','ifgt','ifge','ifnlt','ifnle','ifngt','ifnge','ifstricteq','ifstrictne','returnvoid','returnvalue','throw','lookupswitch'}
+    for i,x in enumerate(ins):
+        leaders.update(x['targets'])
+        if x['name'] in terminators and i+1<len(ins): leaders.add(ins[i+1]['offset'])
+    leaders=sorted(leaders); blocks=[]
+    for j,start in enumerate(leaders):
+        si=byoff[start]; end=leaders[j+1] if j+1<len(leaders) else ins[-1]['end']; ei=si
+        while ei<len(ins) and ins[ei]['offset']<end: ei+=1
+        blocks.append((start,ins[si:ei]))
+    next_block={blocks[i][0]:(blocks[i+1][0] if i+1<len(blocks) else None) for i in range(len(blocks))}; succ={}
+    for start,b in blocks:
+        x=b[-1]; n=x['name']; s=[]
+        if n=='jump': s=x['targets']
+        elif n.startswith('if'): s=x['targets']+([next_block[start]] if next_block[start] is not None else [])
+        elif n=='lookupswitch': s=x['targets']
+        elif n not in ('returnvoid','returnvalue','throw') and next_block[start] is not None: s=[next_block[start]]
+        succ[start]=s
+    depth={0:0}; queue=[0]; bmap=dict(blocks)
+    while queue:
+        st=queue.pop(0); d=depth[st]
+        for x in bmap[st]:
+            d += stack_effect(abc,x)
+            if d<0: raise ValueError(f'negative stack at block {st:#x} ins {x}')
+        for t in succ[st]:
+            if t not in depth: depth[t]=d; queue.append(t)
+            elif depth[t]!=d: raise ValueError(f'stack depth conflict at {t:#x}: {depth[t]} vs {d}')
+    return blocks,next_block,succ,depth
+
+def local_name(mid,abc,idx,local0_expr='this'):
+    pc=len(abc.methods[mid]['param_types'])
+    if idx==0:return local0_expr
+    if idx<=pc:return param_name(abc,mid,idx)
+    return f'_loc{idx}_'
+
+def repair_scope_spills(text:str)->str:
+    pairs=set(re.findall(r'\b(__stk\d+)\s*=\s*([A-Za-z_$][\w$]*)\s*;',text))
+    for spill,name in pairs: text=text.replace(f'({spill})["{name}"] =',f'{name} =')
+    return text
+
+def emit_method(abc,mid,method_name=None,visibility='public',local0_expr='this'):
+    m=abc.methods[mid]; body=abc.bodies[mid]; ins=decode(abc,body['code']); blocks,nxt,succ,depth=cfg(abc,ins); aliases=abc.method_name_map().get(mid,[]); current_owner=aliases[0].split('::',1)[0] if aliases and not aliases[0].startswith('<script') else None
+    if method_name is None: method_name=(aliases[0].split('::')[-1].split('.')[-1] if aliases else f'method_{mid}')
+    rett=abc.mn(m['return_type']) or '*'; rett='*' if rett=='*' else rett; params=[]; opt=m.get('optional',[]); opt_start=len(m['param_types'])-len(opt)
+    for i,t in enumerate(m['param_types'],1):
+        p=f'{param_name(abc,mid,i)}:{abc.mn(t) or "*"}'
+        if i-1>=opt_start and opt:
+            oi=i-1-opt_start; p += ' = ' + const_value(abc,opt[oi][0],opt[oi][1])
+        params.append(p)
+    prefix=(visibility.strip()+' ') if visibility.strip() else ''; decl=f'{prefix}function {method_name}({", ".join(params)}) : {rett}'; out=[decl,'{']; pcnt=len(m['param_types'])
+    for i in range(pcnt+1,body['local_count']): out.append(f'   var _loc{i}_:*;')
+    max_entry=max(depth.values()) if depth else 0
+    for i in range(max_entry): out.append(f'   var __stk{i}:*;')
+    has_activation=any(x['name']=='newactivation' for x in ins)
+    if has_activation: out.append('   var __activation:Object = {};')
+    out+=['   var __pc:int = 0;','   while(true)','   {','      switch(__pc)','      {']; bmap=dict(blocks); condops={'iftrue':lambda a:f'Boolean({a.code})','iffalse':lambda a:f'!Boolean({a.code})'}; bincond={'ifeq':'==','ifne':'!=','iflt':'<','ifle':'<=','ifgt':'>','ifge':'>=','ifnlt':'>=','ifnle':'>','ifngt':'<=','ifnge':'<','ifstricteq':'===','ifstrictne':'!==' }
+    for start,b in blocks:
+        if start not in depth: continue
+        stack=[Expr(f'__stk{i}') for i in range(depth[start])]; lines=[]; terminal=False
+        def popargs(n):
+            a=[stack.pop() for _ in range(n)];a.reverse();return a
+        for ix,x in enumerate(b):
+            n=x['name'];v=x['vals'];last=(ix==len(b)-1)
+            if n in ('pushscope','pushwith'): stack.pop(); continue
+            if n.startswith('debug') or n in ('nop','label','popscope','bkpt','bkptline','timestamp'): continue
+            if n.startswith('getlocal'):
+                idx={'getlocal0':0,'getlocal1':1,'getlocal2':2,'getlocal3':3}.get(n,v[0] if v else 0); stack.append(Expr(local_name(mid,abc,idx,local0_expr))); continue
+            if n.startswith('setlocal'):
+                idx={'setlocal0':0,'setlocal1':1,'setlocal2':2,'setlocal3':3}.get(n,v[0] if v else 0); e=stack.pop(); lines.append(f'{local_name(mid,abc,idx,local0_expr)} = {e.code};'); continue
+            if n=='kill': continue
