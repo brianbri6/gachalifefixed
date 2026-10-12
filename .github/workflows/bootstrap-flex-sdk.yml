@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/bootstrap-flex-sdk.yml'
 
+# Re-trigger marker: 2026-10-12
 jobs:
   package-sdk:
     runs-on: ubuntu-latest
