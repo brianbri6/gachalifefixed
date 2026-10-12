@@ -1,0 +1,45 @@
+name: Bootstrap Flex AIR SDK
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/bootstrap-flex-sdk.yml'
+
+jobs:
+  package-sdk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out known SDK mirror
+        uses: actions/checkout@v4
+        with:
+          repository: madebysource/flex-sdk
+          ref: 2061b3460b72bc93d11f3153c111fc2416b5834f
+          path: upstream-sdk
+          fetch-depth: 1
+
+      - name: Build minimal compiler SDK artifact
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p flex-sdk
+          cp -a upstream-sdk/bin flex-sdk/
+          cp -a upstream-sdk/lib flex-sdk/
+          cp -a upstream-sdk/frameworks flex-sdk/
+          chmod +x flex-sdk/bin/mxmlc || true
+          echo 'SDK payload size:'
+          du -sh flex-sdk
+          echo 'Compiler probe:'
+          FLEX_HOME="$PWD/flex-sdk" "$PWD/flex-sdk/bin/mxmlc" -version
+          test -f flex-sdk/lib/mxmlc.jar
+          test -f flex-sdk/frameworks/libs/air/airglobal.swc
+
+      - name: Upload compiler SDK
+        uses: actions/upload-artifact@v4
+        with:
+          name: flex-air-sdk
+          path: flex-sdk
+          compression-level: 0
+          retention-days: 1
+          if-no-files-found: error
